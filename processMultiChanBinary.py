@@ -10,10 +10,10 @@ import sys
 import struct
 import datetime as dt
 import json
+import csv
 import numpy as np
 import ROOT as r
 import time
-import csv
 
 
 def getStr(fid, length):
@@ -48,27 +48,27 @@ def getInt(fid, num=1):
     res = struct.unpack("I"*num, data)
     return res[0] if num == 1 else res
 
-def parseCSV(fname, HV, uts):
+
+def parseCSV(fname):
+    HV = np.array([])
+    uts = np.array([])
     with open(fname) as csvfile:
-        reader = csv.reader(csvfile,delimiter=',')
-        line_count = 0
+        reader = csv.reader(csvfile, delimiter=',')
+        # line 0 is just headers
+        # line 1 has starting voltage
+        HV = np.append(HV, -1.0*float(reader[1][0]))
+        uts = np.append(uts, float(reader[1][2]))
         for row in reader:
-            # line 0 is just headers
             # row[0] - first column - voltages
             # row[2] - third column - times
-            if line_count > 0:
-                # line 1 has starting voltage
-                if line_count == 1:
-                    HV = np.append(HV, -1.0*float(row[0]))
-                    uts = np.append(uts, float(row[2]))
-                # when next row has different voltage from
-                # previous row, save new voltage to HV
-                # and time of voltage change to uts
-                elif float(row[0]) != -1.0*HV[-1]:
-                    HV = np.append(HV, -1.0*float(row[0]))
-                    uts = np.append(uts, float(row[2]))
-            line_count += 1
-    return HV,uts
+            # when next row has different voltage from
+            # previous row, save new voltage to HV
+            # and time of voltage change to uts
+            if float(row[0]) != -1.0*HV[-1]:
+                HV = np.append(HV, -1.0*float(row[0]))
+                uts = np.append(uts, float(row[2]))
+    return HV, uts
+
 
 def processMultiChanBinary(name):
     print("processing data")
@@ -98,13 +98,12 @@ def processMultiChanBinary(name):
     v3 = t.Branch("voltages_CH3", vs3, 'voltages[1024]/D')
     t4 = t.Branch("times_CH4", ts4, 'times[1024]/D')
     v4 = t.Branch("voltages_CH4", vs4, 'voltages[1024]/D')
-    eHV = t.Branch("bias_voltage",evtHV,'bias/D')
+    eHV = t.Branch("bias_voltage", evtHV, 'bias/D')
 
-    # parse CSV returns HV array with voltages, 
+    # parse CSV returns HV array with voltages,
     # uts array with time voltages change
-    HV = np.array([])
-    uts = np.array([])
-    HV, uts = parseCSV('./currentMonitor/CurrMonit_UTCFEB222019+22.17.16_LED_LONGSCAN.csv',HV,uts)
+    HV, uts = parseCSV(
+        './currentMonitor/CurrMonit_UTCFEB222019+22.17.16_LED_LONGSCAN.csv')
 
     fid = open(fin, 'rb')
 
@@ -168,15 +167,15 @@ def processMultiChanBinary(name):
     n_evt = 0
     while True:
         ehdr = getStr(fid, 4)
-        if ehdr == None:
+        if ehdr is None:
             break
         if ehdr != 'EHDR':
             raise Exception("Bad event header!")
 
         n_evt += 1
         if((n_evt-1) % 1000 == 0):
-            print "Processing event "+str(n_evt-1)
-        serial = getInt(fid)
+            print("Processing event "+str(n_evt-1))
+        # serial = getInt(fid)
 
         # print "  Serial #"+str(serial)
         # Following lines get event time convert to UNIX timestamp
@@ -189,8 +188,8 @@ def processMultiChanBinary(name):
         # event time (timestamp) comes before a uts voltage change time
         # so the voltage of event corresponds to the previous argument
         # since it is the bin where timestamp occurred (> lower limit, < upper)
-        evtHV[0] = HV[np.argmax(uts>timestamp)-1]
-        
+        evtHV[0] = HV[np.argmax(uts > timestamp)-1]
+
         if n_evt == 1:
             t_start = date
         t_end = date
