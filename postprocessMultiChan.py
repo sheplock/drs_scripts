@@ -37,6 +37,8 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
     offset_CH4 = np.array([0], dtype=float)
     noise_CH4 = np.array([0], dtype=float)
 
+    evtHV = np.array([0], dtype=float)
+
     max_CH1 = np.array([0], dtype=float)
     max_CH2 = np.array([0], dtype=float)
     max_CH3 = np.array([0], dtype=float)
@@ -56,6 +58,7 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
     t.SetBranchStatus("voltages_CH3", 1)
     t.SetBranchStatus("times_CH4", 1)
     t.SetBranchStatus("voltages_CH4", 1)
+    t.SetBranchStatus("bias_voltage", 1)
     nt = t.CloneTree()
 
     nt.SetBranchAddress("times_CH1", times_CH1)
@@ -66,6 +69,7 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
     nt.SetBranchAddress("voltages_CH3", voltages_CH3)
     nt.SetBranchAddress("times_CH4", times_CH4)
     nt.SetBranchAddress("voltages_CH4", voltages_CH4)
+    nt.SetBranchAddress("bias_voltage", evtHV)
     b_area_CH1 = nt.Branch("area_CH1", area_CH1, "area/D")
     b_offset_CH1 = nt.Branch("offset_CH1", offset_CH1, "offset/D")
     b_noise_CH1 = nt.Branch("noise_CH1", noise_CH1, "noise/D")
@@ -111,7 +115,9 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
             max_vs = max(vs)
             # max is just the highet point
             imax = np.argmax(vs)
-            if(imax > 0 and imax < 1024):
+            #istart = np.argmax(times_CH1>tstart_1+times_CH1[0])
+            #iend = np.argmax(times_CH1>tend_1+times_CH1[0])
+            if(imax > 24 and imax < 1000):
                 # after peak
                 vs_high = vs[imax:]
                 # before peak

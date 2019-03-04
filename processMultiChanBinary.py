@@ -12,6 +12,8 @@ import datetime as dt
 import json
 import numpy as np
 import ROOT as r
+import time
+import csv
 
 
 def getStr(fid, length):
@@ -46,8 +48,29 @@ def getInt(fid, num=1):
     res = struct.unpack("I"*num, data)
     return res[0] if num == 1 else res
 
+def parseCSV(fname, HV, uts):
+    with open(fname) as csvfile:
+        reader = csv.reader(csvfile,delimiter=',')
+        line_count = 0
+        for row in reader:
+            # line 0 is just headers
+            # row[0] - first column - voltages
+            # row[2] - third column - times
+            if line_count > 0:
+                # line 1 has starting voltage
+                if line_count == 1:
+                    HV = np.append(HV, -1.0*float(row[0]))
+                    uts = np.append(uts, float(row[2]))
+                # when next row has different voltage from
+                # previous row, save new voltage to HV
+                # and time of voltage change to uts
+                elif float(row[0]) != -1.0*HV[-1]:
+                    HV = np.append(HV, -1.0*float(row[0]))
+                    uts = np.append(uts, float(row[2]))
+            line_count += 1
+    return HV,uts
 
-def processMultiChanBinary(name, N_EVTS):
+def processMultiChanBinary(name):
     print("processing data")
 
     indir = "./unprocessed"
@@ -65,6 +88,7 @@ def processMultiChanBinary(name, N_EVTS):
     vs3 = np.zeros(1024, dtype='float')
     ts4 = np.zeros(1024, dtype='float')
     vs4 = np.zeros(1024, dtype='float')
+    evtHV = np.array([0], dtype='float')
     t = r.TTree("Events", "Events")
     t1 = t.Branch("times_CH1", ts1, 'times[1024]/D')
     v1 = t.Branch("voltages_CH1", vs1, 'voltages[1024]/D')
@@ -74,8 +98,13 @@ def processMultiChanBinary(name, N_EVTS):
     v3 = t.Branch("voltages_CH3", vs3, 'voltages[1024]/D')
     t4 = t.Branch("times_CH4", ts4, 'times[1024]/D')
     v4 = t.Branch("voltages_CH4", vs4, 'voltages[1024]/D')
+    eHV = t.Branch("bias_voltage",evtHV,'bias/D')
 
-    t.SetEntries(N_EVTS)
+    # parse CSV returns HV array with voltages, 
+    # uts array with time voltages change
+    HV = np.array([])
+    uts = np.array([])
+    HV, uts = parseCSV('./currentMonitor/CurrMonit_UTCFEB222019+22.17.16_LED_LONGSCAN.csv',HV,uts)
 
     fid = open(fin, 'rb')
 
@@ -133,6 +162,9 @@ def processMultiChanBinary(name, N_EVTS):
     n_chan = len(bin_widths)
     rates = []
 
+    epoch = dt.datetime.utcfromtimestamp(0)
+    UTC_OFFSET = -8
+
     n_evt = 0
     while True:
         ehdr = getStr(fid, 4)
@@ -142,15 +174,26 @@ def processMultiChanBinary(name, N_EVTS):
             raise Exception("Bad event header!")
 
         n_evt += 1
-        # print "Found Event #"+str(n_evt)
+        if((n_evt-1) % 1000 == 0):
+            print "Processing event "+str(n_evt-1)
         serial = getInt(fid)
+
         # print "  Serial #"+str(serial)
+        # Following lines get event time convert to UNIX timestamp
+        # Quick cheat to get from PST to UTC but doesn't account for daylight savings...
         date = getShort(fid, 7)
         date = dt.datetime(*date[:6], microsecond=1000*date[6])
+        date = date - dt.timedelta(hours=UTC_OFFSET)
+        timestamp = (date - epoch).total_seconds()
+        # argmax(uts>timestamp) returns argument when
+        # event time (timestamp) comes before a uts voltage change time
+        # so the voltage of event corresponds to the previous argument
+        # since it is the bin where timestamp occurred (> lower limit, < upper)
+        evtHV[0] = HV[np.argmax(uts>timestamp)-1]
+        
         if n_evt == 1:
             t_start = date
-        elif n_evt == N_EVTS:
-            t_end = date
+        t_end = date
         # print "  Date: "+str(date)
         rangeCtr = getShort(fid)
         # print "  Range Center: "+str(rangeCtr)
@@ -179,26 +222,20 @@ def processMultiChanBinary(name, N_EVTS):
             if ichn == 0:
                 np.copyto(ts1, times)
                 np.copyto(vs1, voltages)
-                t1.Fill()
-                v1.Fill()
             elif ichn == 1:
                 np.copyto(ts2, times)
                 np.copyto(vs2, voltages)
-                t2.Fill()
-                v2.Fill()
             elif ichn == 2:
                 np.copyto(ts3, times)
                 np.copyto(vs3, voltages)
-                t3.Fill()
-                v3.Fill()
             elif ichn == 3:
                 np.copyto(ts4, times)
                 np.copyto(vs4, voltages)
-                t4.Fill()
-                v4.Fill()
             else:
                 print("ERROR: Channel out of range! "+str(ichn))
                 exit(1)
+
+        t.Fill()
 
     t_tot = t_end - t_start
     t_sec = t_tot.total_seconds()
@@ -206,7 +243,7 @@ def processMultiChanBinary(name, N_EVTS):
     print("Measured sampling rate: {0:.2f} GHz".format(1.0/np.mean(rates)))
     print("Total time of run = " + str(t_tot) +
           " which is " + str(t_sec) + " seconds.")
-    print("Event rate = " + str(N_EVTS/t_sec) + " Hz")
+    print("Event rate = " + str(n_evt/t_sec) + " Hz")
     t.Write()
     fout.Close()
 
@@ -216,7 +253,4 @@ if __name__ == "__main__":
     for filename in args:
         folder, name = filename.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
-        pre, evt = name.rsplit('_', 1)
-        nevts, vts = evt.rsplit('e', 1)
-        N_EVTS = int(nevts)
-        processMultiChanBinary(name, N_EVTS)
+        processMultiChanBinary(name)
