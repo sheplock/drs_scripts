@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cPickle as pickle
 
-def postprocessMultiChan(name, chn1, chn2, chn3, chn4)
+def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
     print "doing post-processing: {0}".format(name)
     
     f = r.TFile("/homes/sheplock/Timing/drs_scope/data/processed/{0}.root".format(name), "UPDATE")
@@ -36,6 +36,8 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4)
     offset_CH4 = np.array([0], dtype=float)
     noise_CH4 = np.array([0], dtype=float)
 
+    evtHV = np.array([0], dtype=float)
+
     max_CH1 = np.array([0], dtype=float)
     max_CH2 = np.array([0], dtype=float)
     max_CH3 = np.array([0], dtype=float)
@@ -55,6 +57,7 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4)
     t.SetBranchStatus("voltages_CH3", 1)
     t.SetBranchStatus("times_CH4", 1)
     t.SetBranchStatus("voltages_CH4", 1)
+    t.SetBranchStatus("bias_voltage", 1)
     nt = t.CloneTree()
     
     nt.SetBranchAddress("times_CH1",times_CH1)
@@ -65,6 +68,7 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4)
     nt.SetBranchAddress("voltages_CH3",voltages_CH3)
     nt.SetBranchAddress("times_CH4",times_CH4)
     nt.SetBranchAddress("voltages_CH4",voltages_CH4)
+    nt.SetBranchAddress("bias_voltage",evtHV)
     b_area_CH1 = nt.Branch("area_CH1", area_CH1, "area/D")
     b_offset_CH1 = nt.Branch("offset_CH1", offset_CH1, "offset/D")
     b_noise_CH1 = nt.Branch("noise_CH1", noise_CH1, "noise/D")
@@ -93,11 +97,9 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4)
     for ievt in range(Nevt):
         nt.GetEntry(ievt)
 
-        if ievt%10000==0:
+        if ievt%1000==0:
             print "iEvt:", ievt
-            #added
-            #print("Time elapsed (since loop start): {} seconds".format(time.time()-tLoopStart))
-        
+                    
         max1 = False
         max2 = False
         max3 = False
@@ -108,13 +110,19 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4)
         if(chn1):
             vs = -voltages_CH1
             max_vs = max(vs)
+            #print max_vs
             imax = np.argmax(vs)
-            if(imax>0 and imax<1024):
+            #istart = np.argmax(times_CH1>tstart_1+times_CH1[0])
+            #iend = np.argmax(times_CH1>tend_1+times_CH1[0])
+            if(imax>24 and imax<1000):
                 vs_high = vs[imax:]
                 vs_low = vs[:imax]
                 rev_vs_low = vs_low[::-1]
                 iend = np.argmax(vs_high<5.0) + imax
                 istart = len(rev_vs_low) - np.argmax(rev_vs_low<5.0) - 1
+                #print iend, istart
+                #print max_CH1[0]
+                #print ""
                 max_CH1[0] = max_vs
                 tMax_CH1[0] = times_CH1[imax]
                 offset_CH1[0] = np.mean(vs[30:istart*3/4])
