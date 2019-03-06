@@ -56,11 +56,13 @@ def parseCSV(fname):
     uts = np.array([])
     with open(fname) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
+        print(fname)
+        reader = list(reader)
         # line 0 is just headers
         # line 1 has starting voltage
         HV = np.append(HV, -1.0*float(reader[1][0]))
         uts = np.append(uts, float(reader[1][2]))
-        for row in reader:
+        for row in reader[1:]:
             # row[0] - first column - voltages
             # row[2] - third column - times
             # when next row has different voltage from
@@ -72,7 +74,7 @@ def parseCSV(fname):
     return HV, uts
 
 
-def processMultiChanBinary(name, csvpath=""):
+def processMultiChanBinary(name, csvfiles=[]):
     print("processing data")
 
     indir = "./unprocessed"
@@ -106,8 +108,8 @@ def processMultiChanBinary(name, csvpath=""):
     # uts array with time voltages change
     HV, uts = np.array([]), np.array([])
     if csvpath != "":
-        listCSV = glob.glob(csvpath)
-        for each in listCSV:
+        # listCSV = glob.glob(csvpath)
+        for each in csvfiles:
             res = parseCSV(each)
             HV = np.append(HV, res[0])
             uts = np.append(uts, res[1])
@@ -187,7 +189,9 @@ def processMultiChanBinary(name, csvpath=""):
         # print "  Serial #"+str(serial)
         # Following lines get event time convert to UNIX timestamp
         # Quick cheat to get from PST to UTC but doesn't account for daylight savings...
-        date = getShort(fid, 7)
+        # FIXME (1, 0, 2019, 2, 22, 14, 47) looks to me in (second microsecond year month date hour minute?)
+        date = getShort(fid, 9)[2:]
+        # date = getShort(fid, 7)
         date = dt.datetime(*date[:6], microsecond=1000*date[6])
         date = date - dt.timedelta(hours=UTC_OFFSET)
         timestamp = (date - epoch).total_seconds()
@@ -263,9 +267,9 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--csvpath', help='Path to folder of CSV file', required=False, type=str)
     args = vars(parser.parse_args())
 
-    datfiles = glob.glob(args["binaryfile"]+"/*")
+    datfiles = glob.glob(args["binaryfile"]+"/*.dat")
     try:
-        csvpath = glob.glob(args['csvpath'])
+        csvpath = glob.glob(args['csvpath']+"/*.csv")
     except TypeError:
         csvpath=""
     for each in datfiles:
