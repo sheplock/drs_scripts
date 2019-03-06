@@ -56,11 +56,13 @@ def parseCSV(fname):
     uts = np.array([])
     with open(fname) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
+        print(fname)
+        reader = list(reader)
         # line 0 is just headers
         # line 1 has starting voltage
         HV = np.append(HV, -1.0*float(reader[1][0]))
         uts = np.append(uts, float(reader[1][2]))
-        for row in reader:
+        for row in reader[1:]:
             # row[0] - first column - voltages
             # row[2] - third column - times
             # when next row has different voltage from
@@ -72,7 +74,7 @@ def parseCSV(fname):
     return HV, uts
 
 
-def processMultiChanBinary(name, csvpath=""):
+def processMultiChanBinary(name, csvfiles=[]):
     print("processing data")
 
     indir = "./unprocessed"
@@ -106,8 +108,8 @@ def processMultiChanBinary(name, csvpath=""):
     # uts array with time voltages change
     HV, uts = np.array([]), np.array([])
     if csvpath != "":
-        listCSV = glob.glob(csvpath)
-        for each in listCSV:
+        # listCSV = glob.glob(csvpath)
+        for each in csvfiles:
             res = parseCSV(each)
             HV = np.append(HV, res[0])
             uts = np.append(uts, res[1])
@@ -182,7 +184,8 @@ def processMultiChanBinary(name, csvpath=""):
         n_evt += 1
         if((n_evt-1) % 1000 == 0):
             print("Processing event "+str(n_evt-1))
-        # serial = getInt(fid)
+        # skip 2 digits for NO USE
+        serial = getInt(fid)
 
         # print "  Serial #"+str(serial)
         # Following lines get event time convert to UNIX timestamp
@@ -216,6 +219,7 @@ def processMultiChanBinary(name, csvpath=""):
                 print("ERROR: bad event data!")
                 exit(1)
 
+            # skipping digits again
             scaler = getInt(fid)
             voltages = np.array(getShort(fid, N_BINS))
             # if READ_CHN != channels[ichn]:
@@ -255,19 +259,17 @@ def processMultiChanBinary(name, csvpath=""):
 
 
 if __name__ == "__main__":
-    # args = sys.argv[1:]
-    # print(args)
-
     parser = argparse.ArgumentParser(description="Parse DRS .dat file and .csv into .root files")
     parser.add_argument('-b', '--binaryfile', help='Path to binary files', required=True, type=str)
     parser.add_argument('-c', '--csvpath', help='Path to folder of CSV file', required=False, type=str)
     args = vars(parser.parse_args())
 
-    datfiles = glob.glob(args["binaryfile"]+"/*")
+    datfiles = glob.glob(args["binaryfile"]+"/*.dat")
     try:
-        csvpath = glob.glob(args['csvpath'])
+        csvpath = glob.glob(args['csvpath']+"/*.csv")
     except TypeError:
         csvpath=""
+
     for each in datfiles:
         folder, name = each.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
