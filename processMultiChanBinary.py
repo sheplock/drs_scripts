@@ -184,14 +184,13 @@ def processMultiChanBinary(name, csvfiles=[]):
         n_evt += 1
         if((n_evt-1) % 1000 == 0):
             print("Processing event "+str(n_evt-1))
-        # serial = getInt(fid)
+        # skip 2 digits for NO USE
+        serial = getInt(fid)
 
         # print "  Serial #"+str(serial)
         # Following lines get event time convert to UNIX timestamp
         # Quick cheat to get from PST to UTC but doesn't account for daylight savings...
-        # FIXME (1, 0, 2019, 2, 22, 14, 47) looks to me in (second microsecond year month date hour minute?)
-        date = getShort(fid, 9)[2:]
-        # date = getShort(fid, 7)
+        date = getShort(fid, 7)
         date = dt.datetime(*date[:6], microsecond=1000*date[6])
         date = date - dt.timedelta(hours=UTC_OFFSET)
         timestamp = (date - epoch).total_seconds()
@@ -220,6 +219,7 @@ def processMultiChanBinary(name, csvfiles=[]):
                 print("ERROR: bad event data!")
                 exit(1)
 
+            # skipping digits again
             scaler = getInt(fid)
             voltages = np.array(getShort(fid, N_BINS))
             # if READ_CHN != channels[ichn]:
@@ -259,9 +259,6 @@ def processMultiChanBinary(name, csvfiles=[]):
 
 
 if __name__ == "__main__":
-    # args = sys.argv[1:]
-    # print(args)
-
     parser = argparse.ArgumentParser(description="Parse DRS .dat file and .csv into .root files")
     parser.add_argument('-b', '--binaryfile', help='Path to binary files', required=True, type=str)
     parser.add_argument('-c', '--csvpath', help='Path to folder of CSV file', required=False, type=str)
@@ -272,6 +269,7 @@ if __name__ == "__main__":
         csvpath = glob.glob(args['csvpath']+"/*.csv")
     except TypeError:
         csvpath=""
+
     for each in datfiles:
         folder, name = each.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
