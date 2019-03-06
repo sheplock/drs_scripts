@@ -11,6 +11,8 @@ import struct
 import datetime as dt
 import json
 import csv
+import glob
+import argparse
 import numpy as np
 import ROOT as r
 import time
@@ -70,7 +72,7 @@ def parseCSV(fname):
     return HV, uts
 
 
-def processMultiChanBinary(name):
+def processMultiChanBinary(name, csvpath=""):
     print("processing data")
 
     indir = "./unprocessed"
@@ -100,10 +102,15 @@ def processMultiChanBinary(name):
     v4 = t.Branch("voltages_CH4", vs4, 'voltages[1024]/D')
     eHV = t.Branch("bias_voltage", evtHV, 'bias/D')
 
-    # parse CSV returns HV array with voltages,
+    # parse CSVs returns HV array with voltages,
     # uts array with time voltages change
-    HV, uts = parseCSV(
-        './currentMonitor/CurrMonit_UTCFEB222019+22.17.16_LED_LONGSCAN.csv')
+    HV, uts = np.array([]), np.array([])
+    if csvpath != "":
+        listCSV = glob.glob(csvpath)
+        for each in listCSV:
+            res = parseCSV(each)
+            HV = np.append(HV, res[0])
+            uts = np.append(uts, res[1])
 
     fid = open(fin, 'rb')
 
@@ -248,8 +255,21 @@ def processMultiChanBinary(name):
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    for filename in args:
-        folder, name = filename.rsplit('/', 1)
+    # args = sys.argv[1:]
+    # print(args)
+
+    parser = argparse.ArgumentParser(description="Parse DRS .dat file and .csv into .root files")
+    parser.add_argument('-b', '--binaryfile', help='Path to binary files', required=True, type=str)
+    parser.add_argument('-c', '--csvpath', help='Path to folder of CSV file', required=False, type=str)
+    args = vars(parser.parse_args())
+
+    datfiles = glob.glob(args["binaryfile"]+"/*")
+    try:
+        csvpath = glob.glob(args['csvpath'])
+    except TypeError:
+        csvpath=""
+    for each in datfiles:
+        folder, name = each.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
-        processMultiChanBinary(name)
+        # print(folder, name, ext)
+        processMultiChanBinary(name, csvpath)
