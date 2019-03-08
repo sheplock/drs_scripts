@@ -1,4 +1,11 @@
 # drs_scripts
+**Note**: By default, `processMultiChanBinary` uses 4 processes.
+
+## Non-built in dependence
+* ROOT
+* numpy
+* matplotlib
+
 
 ## Example:
 First creat `./processed/` and `./unprocessed/` in the `drs_scripts` folder (specified in `./postprocessMultiChan.py`).
