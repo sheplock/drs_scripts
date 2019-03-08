@@ -16,6 +16,7 @@ import argparse
 import numpy as np
 import ROOT as r
 import time
+from multiprocessing import Pool
 
 
 def getStr(fid, length):
@@ -259,19 +260,28 @@ def processMultiChanBinary(name, csvfiles=[]):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Parse DRS .dat file and .csv into .root files")
-    parser.add_argument('-b', '--binaryfile', help='Path to binary files', required=True, type=str)
-    parser.add_argument('-c', '--csvpath', help='Path to folder of CSV file', required=False, type=str)
+    parser = argparse.ArgumentParser(
+        description="Parse DRS .dat file and .csv into .root files")
+    parser.add_argument('-b', '--binaryfile',
+                        help='Path to binary files', required=True, type=str)
+    parser.add_argument(
+        '-c', '--csvpath', help='Path to folder of CSV file', required=False, type=str)
     args = vars(parser.parse_args())
 
     datfiles = glob.glob(args["binaryfile"]+"/*.dat")
     try:
         csvpath = glob.glob(args['csvpath']+"/*.csv")
     except TypeError:
-        csvpath=""
+        csvpath = ""
 
+    poolargs = []
     for each in datfiles:
         folder, name = each.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
-        # print(folder, name, ext)
-        processMultiChanBinary(name, csvpath)
+        # avoid overwrite
+        if not (glob.glob("./processed/"+name+".root")):
+            poolargs.append((name, csvpath))
+        # processMultiChanBinary(name, csvpath)
+
+    pool = Pool(processes=4)
+    pool.starmap(processMultiChanBinary, poolargs)
