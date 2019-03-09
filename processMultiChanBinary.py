@@ -52,32 +52,37 @@ def getInt(fid, num=1):
     return res[0] if num == 1 else res
 
 
-def parseCSV(fname):
-    HV = np.array([])
-    uts = np.array([])
-    with open(fname) as csvfile:
-        reader = csv.reader(csvfile, delimiter=',')
-        print(fname)
-        reader = list(reader)
-        # line 0 is just headers
-        # line 1 has starting voltage
-        HV = np.append(HV, -1.0*float(reader[1][0]))
-        uts = np.append(uts, float(reader[1][2]))
-        for row in reader[1:]:
-            # row[0] - first column - voltages
-            # row[2] - third column - times
-            # when next row has different voltage from
-            # previous row, save new voltage to HV
-            # and time of voltage change to uts
-            if float(row[0]) != -1.0*HV[-1]:
-                HV = np.append(HV, -1.0*float(row[0]))
-                uts = np.append(uts, float(row[2]))
-    return HV, uts
+def parseCSV(csvpaths):
+    # numpy append may cuase issue, convert at the end
+    HV = []
+    currs = []
+    uts = []
+    for fname in csvpaths:
+        print("CSV file: "+fname+" is processed.")
+        with open(fname) as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            reader = list(reader)
+            # line 0 is just headers
+            # line 1 has starting voltage
+            HV.append(-1.0*float(reader[1][0]))
+            currs.append(float(reader[1][1]))
+            uts.append(float(reader[1][2]))
+            for row in reader[2:]:
+                # row[0] - first column - voltages
+                # row[2] - third column - times
+                # when next row has different voltage from
+                # previous row, save new voltage to HV
+                # and time of voltage change to uts
+                if (float(row[0]) != -1.0*HV[-1]):
+                    HV.append(-1.0*float(row[0]))
+                    currs.append(float(row[1]))
+                    uts.append(float(row[2]))
+    HV, currs, uts = np.array(HV), np.array(currs), np.array(uts)
+    return HV, currs, uts
 
 
-def processMultiChanBinary(name, csvfiles=[]):
-    print("processing data")
-
+def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
+    print("Processing " + name)
     indir = "./unprocessed"
     outdir = "./processed"
 
@@ -94,6 +99,7 @@ def processMultiChanBinary(name, csvfiles=[]):
     ts4 = np.zeros(1024, dtype='float')
     vs4 = np.zeros(1024, dtype='float')
     evtHV = np.array([0], dtype='float')
+    evtCurr = np.array([0], dtype='float')
     t = r.TTree("Events", "Events")
     t1 = t.Branch("times_CH1", ts1, 'times[1024]/D')
     v1 = t.Branch("voltages_CH1", vs1, 'voltages[1024]/D')
@@ -103,17 +109,19 @@ def processMultiChanBinary(name, csvfiles=[]):
     v3 = t.Branch("voltages_CH3", vs3, 'voltages[1024]/D')
     t4 = t.Branch("times_CH4", ts4, 'times[1024]/D')
     v4 = t.Branch("voltages_CH4", vs4, 'voltages[1024]/D')
-    eHV = t.Branch("bias_voltage", evtHV, 'bias/D')
+    if len(HV) > 0 or len(uts)>0:
+        eHV = t.Branch("bias_voltage", evtHV, 'bias/D')
+        eCurr = t.Branch("bias_current", evtCurr, 'bias/D')
 
     # parse CSVs returns HV array with voltages,
     # uts array with time voltages change
-    HV, uts = np.array([]), np.array([])
-    if csvpath != "":
-        # listCSV = glob.glob(csvpath)
-        for each in csvfiles:
-            res = parseCSV(each)
-            HV = np.append(HV, res[0])
-            uts = np.append(uts, res[1])
+    # HV, uts = np.array([]), np.array([])
+    # if csvpath != "":
+    #     # listCSV = glob.glob(csvpath)
+    #     for each in csvfiles:
+    #         res = parseCSV(each)
+    #         HV = np.append(HV, res[0])
+    #         uts = np.append(uts, res[1])
 
     fid = open(fin, 'rb')
 
@@ -183,7 +191,7 @@ def processMultiChanBinary(name, csvfiles=[]):
             raise Exception("Bad event header!")
 
         n_evt += 1
-        if((n_evt-1) % 1000 == 0):
+        if((n_evt-1) % 5000 == 0):
             print("Processing event "+str(n_evt-1))
         # skip 2 digits for NO USE
         serial = getInt(fid)
@@ -195,11 +203,12 @@ def processMultiChanBinary(name, csvfiles=[]):
         date = dt.datetime(*date[:6], microsecond=1000*date[6])
         date = date - dt.timedelta(hours=UTC_OFFSET)
         timestamp = (date - epoch).total_seconds()
-        # argmax(uts>timestamp) returns argument when
+        # argmax(uts>timestamp) returns the index when
         # event time (timestamp) comes before a uts voltage change time
         # so the voltage of event corresponds to the previous argument
         # since it is the bin where timestamp occurred (> lower limit, < upper)
         evtHV[0] = HV[np.argmax(uts > timestamp)-1]
+        evtCurr[0] = currs[np.argmax(uts > timestamp)-1]
 
         if n_evt == 1:
             t_start = date
@@ -274,14 +283,15 @@ if __name__ == "__main__":
     except TypeError:
         csvpath = ""
 
+    HV, currs, uts = parseCSV(csvpath)
     poolargs = []
     for each in datfiles:
         folder, name = each.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
         # avoid overwrite
         if not (glob.glob("./processed/"+name+".root")):
-            poolargs.append((name, csvpath))
+            poolargs.append((name, HV, currs, uts))
         # processMultiChanBinary(name, csvpath)
 
-    pool = Pool(processes=4)
+    pool = Pool(processes=5)
     pool.starmap(processMultiChanBinary, poolargs)

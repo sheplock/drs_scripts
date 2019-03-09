@@ -4,6 +4,7 @@
 # add higher level information like pulse time, area, etc
 
 import sys
+from multiprocessing import Pool
 import ROOT as r
 import numpy as np
 import matplotlib.pyplot as plt
@@ -223,7 +224,10 @@ if __name__ == "__main__":
     chn4 = False
 
     args = sys.argv[1:]
+    pool = Pool(processes=5)
+    poolargs = []
     for filename in args:
         folder, name = filename.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
-        postprocessMultiChan(name, chn1, chn2, chn3, chn4)
+        poolargs.append((name, chn1, chn2, chn3, chn4))
+    pool.starmap(postprocessMultiChan, poolargs)
