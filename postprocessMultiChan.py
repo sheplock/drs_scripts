@@ -39,6 +39,7 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
     noise_CH4 = np.array([0], dtype=float)
 
     evtHV = np.array([0], dtype=float)
+    evtCurr = np.array([0], dtype=float)
 
     max_CH1 = np.array([0], dtype=float)
     max_CH2 = np.array([0], dtype=float)
@@ -60,6 +61,7 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
     t.SetBranchStatus("times_CH4", 1)
     t.SetBranchStatus("voltages_CH4", 1)
     t.SetBranchStatus("bias_voltage", 1)
+    t.SetBranchStatus("bias_current", 1)
     nt = t.CloneTree()
 
     nt.SetBranchAddress("times_CH1", times_CH1)
@@ -71,6 +73,7 @@ def postprocessMultiChan(name, chn1, chn2, chn3, chn4):
     nt.SetBranchAddress("times_CH4", times_CH4)
     nt.SetBranchAddress("voltages_CH4", voltages_CH4)
     nt.SetBranchAddress("bias_voltage", evtHV)
+    nt.SetBranchAddress("bias_current", evtCurr)
     b_area_CH1 = nt.Branch("area_CH1", area_CH1, "area/D")
     b_offset_CH1 = nt.Branch("offset_CH1", offset_CH1, "offset/D")
     b_noise_CH1 = nt.Branch("noise_CH1", noise_CH1, "noise/D")
