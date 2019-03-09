@@ -69,3 +69,28 @@ def parseCSV(csvpaths):
                     uts.append(float(row[2]))
     HV, currs, uts = np.array(HV), np.array(currs), np.array(uts)
     return HV, currs, uts
+def postprocess(voltages, times):
+    vs = -voltages
+    max_vs = max(vs)
+    # max is just the highet point
+    imax = np.argmax(vs)
+    # istart = np.argmax(times_CH1>tstart_1+times_CH1[0])
+    # iend = np.argmax(times_CH1>tend_1+times_CH1[0])
+    if(imax > 24 and imax < 1000):
+        # after peak
+        vs_high = vs[imax:]
+        # before peak
+        vs_low = vs[:imax]
+        rev_vs_low = vs_low[::-1]
+        # manual off-set
+        # where [axis][index]
+        iend = np.where(vs_high < 5.0)[0][0] + imax
+        istart = np.where(vs_low < 5.0)[0][-1]
+        vMax = max_vs
+        tMax = times[imax]
+        offset = np.mean(vs[30:int(istart*3/4)])
+        noise = 0.5*(np.percentile(vs[:int(istart*3/4)],
+                                          95) - np.percentile(vs[:int(istart*3/4)], 5))
+        vs -= offset
+        area = np.trapz(vs[istart:iend], times[istart:iend])
+        return area, offset, noise, tMax, vMax

@@ -29,16 +29,39 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
 
     fin = indir+"/{0}.dat".format(name)
     fout = r.TFile(outdir+"/{0}.root".format(name), "RECREATE")
-    ts1 = np.zeros(1024, dtype='float')
-    vs1 = np.zeros(1024, dtype='float')
-    ts2 = np.zeros(1024, dtype='float')
-    vs2 = np.zeros(1024, dtype='float')
-    ts3 = np.zeros(1024, dtype='float')
-    vs3 = np.zeros(1024, dtype='float')
-    ts4 = np.zeros(1024, dtype='float')
-    vs4 = np.zeros(1024, dtype='float')
-    evtHV = np.array([0], dtype='float')
-    evtCurr = np.array([0], dtype='float')
+    ts1 = np.zeros(1024, dtype=float)
+    vs1 = np.zeros(1024, dtype=float)
+    area_CH1 = np.array([0], dtype=float)
+    offset_CH1 = np.array([0], dtype=float)
+    noise_CH1 = np.array([0], dtype=float)
+    ts2 = np.zeros(1024, dtype=float)
+    vs2 = np.zeros(1024, dtype=float)
+    area_CH2 = np.array([0], dtype=float)
+    offset_CH2 = np.array([0], dtype=float)
+    noise_CH2 = np.array([0], dtype=float)
+    ts3 = np.zeros(1024, dtype=float)
+    vs3 = np.zeros(1024, dtype=float)
+    area_CH3 = np.array([0], dtype=float)
+    offset_CH3 = np.array([0], dtype=float)
+    noise_CH3 = np.array([0], dtype=float)
+    ts4 = np.zeros(1024, dtype=float)
+    vs4 = np.zeros(1024, dtype=float)
+    area_CH4 = np.array([0], dtype=float)
+    offset_CH4 = np.array([0], dtype=float)
+    noise_CH4 = np.array([0], dtype=float)
+    evtHV = np.array([0], dtype=float)
+    evtCurr = np.array([0], dtype=float)
+
+    # original postprocess
+    vMax_CH1 = np.array([0], dtype=float)
+    vMax_CH2 = np.array([0], dtype=float)
+    vMax_CH3 = np.array([0], dtype=float)
+    vMax_CH4 = np.array([0], dtype=float)
+
+    tMax_CH1 = np.array([0], dtype=float)
+    tMax_CH2 = np.array([0], dtype=float)
+    tMax_CH3 = np.array([0], dtype=float)
+    tMax_CH4 = np.array([0], dtype=float)
     t = r.TTree("Events", "Events")
     t1 = t.Branch("times_CH1", ts1, 'times[1024]/D')
     v1 = t.Branch("voltages_CH1", vs1, 'voltages[1024]/D')
@@ -48,9 +71,30 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     v3 = t.Branch("voltages_CH3", vs3, 'voltages[1024]/D')
     t4 = t.Branch("times_CH4", ts4, 'times[1024]/D')
     v4 = t.Branch("voltages_CH4", vs4, 'voltages[1024]/D')
-    if len(HV) > 0 or len(uts)>0:
+    if len(HV) > 0 or len(uts) > 0:
         eHV = t.Branch("bias_voltage", evtHV, 'bias/D')
         eCurr = t.Branch("bias_current", evtCurr, 'bias/D')
+
+    b_area_CH1 = t.Branch("area_CH1", area_CH1, "area/D")
+    b_offset_CH1 = t.Branch("offset_CH1", offset_CH1, "offset/D")
+    b_noise_CH1 = t.Branch("noise_CH1", noise_CH1, "noise/D")
+    b_area_CH2 = t.Branch("area_CH2", area_CH2, "area/D")
+    b_offset_CH2 = t.Branch("offset_CH2", offset_CH2, "offset/D")
+    b_noise_CH2 = t.Branch("noise_CH2", noise_CH2, "noise/D")
+    b_area_CH3 = t.Branch("area_CH3", area_CH3, "area/D")
+    b_offset_CH3 = t.Branch("offset_CH3", offset_CH3, "offset/D")
+    b_noise_CH3 = t.Branch("noise_CH3", noise_CH3, "noise/D")
+    b_area_CH4 = t.Branch("area_CH4", area_CH4, "area/D")
+    b_offset_CH4 = t.Branch("offset_CH4", offset_CH4, "offset/D")
+    b_noise_CH4 = t.Branch("noise_CH4", noise_CH4, "noise/D")
+    b_tMax_CH1 = t.Branch("tMax_CH1", tMax_CH1, "dt/D")
+    b_tMax_CH2 = t.Branch("tMax_CH2", tMax_CH2, "dt/D")
+    b_tMax_CH3 = t.Branch("tMax_CH3", tMax_CH3, "dt/D")
+    b_tMax_CH4 = t.Branch("tMax_CH4", tMax_CH4, "dt/D")
+    b_vMax_CH1 = t.Branch("vMax_CH1", vMax_CH1, "dt/D")
+    b_vMax_CH2 = t.Branch("vMax_CH2", vMax_CH2, "dt/D")
+    b_vMax_CH3 = t.Branch("vMax_CH3", vMax_CH3, "dt/D")
+    b_vMax_CH4 = t.Branch("vMax_CH4", vMax_CH4, "dt/D")
 
     fid = open(fin, 'rb')
 
@@ -120,7 +164,7 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
             raise Exception("Bad event header!")
 
         n_evt += 1
-        if((n_evt-1) % 5000 == 0):
+        if((n_evt-1) % 10000 == 0):
             print("Processing event "+str(n_evt-1))
         # skip 2 digits for NO USE
         serial = getInt(fid)
@@ -136,6 +180,9 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
         # event time (timestamp) comes before a uts voltage change time
         # so the voltage of event corresponds to the previous argument
         # since it is the bin where timestamp occurred (> lower limit, < upper)
+        nextChange = np.argmax(uts > timestamp)
+        previous = nextChange-1
+        gap = uts[nextChange] - uts[previous]
         evtHV[0] = HV[np.argmax(uts > timestamp)-1]
         evtCurr[0] = currs[np.argmax(uts > timestamp)-1]
 
@@ -151,6 +198,8 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
         trig_cell = getShort(fid)
         # print "  Trigger Cell: "+str(trig_cell)
 
+
+        goodFlag = True
         for ichn in range(n_chan):
             chdr = getStr(fid, 4)
             chdr = chdr
@@ -161,35 +210,59 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
             # skipping digits again
             scaler = getInt(fid)
             voltages = np.array(getShort(fid, N_BINS))
-            nextChange= np.argmax(uts > timestamp)
-            previous = nextChange-1
-            gap = uts[nextChange] - uts[previous]
-            if (uts[nextChange] - timestamp) < 0.2*gap:
-                continue
             # if READ_CHN != channels[ichn]:
             #    continue
+            if (timestamp > (uts[nextChange] - 0.2*gap)):
+                goodFlag = False
+                continue
             voltages = voltages/65535. * 1000 - 500 + rangeCtr
             times = np.roll(np.array(bin_widths[ichn]), N_BINS-trig_cell)
             times = np.cumsum(times)
             times = np.append([0], times[:-1])
             rates.append((times[-1]-times[0])/(times.size-1))
+            try:
+                area, offset, noise, tMax, vMax = postprocess(voltages, times)
+            except TypeError:
+                continue
+                # area, offset, noise, tMax, vMax = 0,0,0,0,0
             if ichn == 0:
                 np.copyto(ts1, times)
                 np.copyto(vs1, voltages)
+                np.copyto(area_CH1, area)
+                np.copyto(offset_CH1, offset)
+                np.copyto(noise_CH1, noise)
+                np.copyto(tMax_CH1, tMax)
+                np.copyto(vMax_CH1, vMax)
             elif ichn == 1:
                 np.copyto(ts2, times)
                 np.copyto(vs2, voltages)
+                np.copyto(area_CH2, area)
+                np.copyto(offset_CH2, offset)
+                np.copyto(noise_CH2, noise)
+                np.copyto(tMax_CH2, tMax)
+                np.copyto(vMax_CH2, vMax)
             elif ichn == 2:
                 np.copyto(ts3, times)
                 np.copyto(vs3, voltages)
+                np.copyto(area_CH3, area)
+                np.copyto(offset_CH3, offset)
+                np.copyto(noise_CH3, noise)
+                np.copyto(tMax_CH3, tMax)
+                np.copyto(vMax_CH3, vMax)
             elif ichn == 3:
                 np.copyto(ts4, times)
                 np.copyto(vs4, voltages)
+                np.copyto(area_CH4, area)
+                np.copyto(offset_CH4, offset)
+                np.copyto(noise_CH4, noise)
+                np.copyto(tMax_CH4, tMax)
+                np.copyto(vMax_CH4, vMax)
             else:
                 print("ERROR: Channel out of range! "+str(ichn))
                 exit(1)
 
-        t.Fill()
+        if goodFlag:
+            t.Fill()
 
     t_tot = t_end - t_start
     t_sec = t_tot.total_seconds()
