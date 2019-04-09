@@ -153,7 +153,7 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     rates = []
 
     epoch = dt.datetime.utcfromtimestamp(0)
-    UTC_OFFSET = -8
+    UTC_OFFSET = -7
 
     n_evt = 0
     while True:
@@ -212,9 +212,9 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
             voltages = np.array(getShort(fid, N_BINS))
             # if READ_CHN != channels[ichn]:
             #    continue
-            if (timestamp > (uts[nextChange] - 0.2*gap)):
-                goodFlag = False
-                continue
+            # if (timestamp > (uts[nextChange] - 0.2*gap)):
+            #     goodFlag = False
+            #     continue
             voltages = voltages/65535. * 1000 - 500 + rangeCtr
             times = np.roll(np.array(bin_widths[ichn]), N_BINS-trig_cell)
             times = np.cumsum(times)
