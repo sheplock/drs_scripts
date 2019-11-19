@@ -47,6 +47,8 @@ def parseCSV(csvpaths):
     HV = []
     currs = []
     uts = []
+    avgCurr = 0.0
+    evts = 0
     for fname in csvpaths:
         print("CSV file: "+fname+" is processed.")
         with open(fname) as csvfile:
@@ -55,8 +57,10 @@ def parseCSV(csvpaths):
             # line 0 is just headers
             # line 1 has starting voltage
             HV.append(-1.0*float(reader[1][0]))
-            currs.append(float(reader[1][1]))
+            #currs.append(float(reader[1][1]))
             uts.append(float(reader[1][2]))
+            avgCurr += float(reader[1][1])
+            evts += 1
             for row in reader[2:]:
                 # row[0] - first column - voltages
                 # row[2] - third column - times
@@ -65,10 +69,30 @@ def parseCSV(csvpaths):
                 # and time of voltage change to uts
                 if float(row[0]) != -1.0*HV[-1]:
                     HV.append(-1.0*float(row[0]))
-                    currs.append(float(row[1]))
                     uts.append(float(row[2]))
+                    #print(row[0],row[2],evts)
+                    currs.append(-1.0*float(avgCurr)/float(evts))
+                    avgCurr = 0.0
+                    evts = 1
+                else:
+                    avgCurr += float(row[1])
+                    evts += 1
+            currs.append(-1.0*float(avgCurr)/float(evts))
     HV, currs, uts = np.array(HV), np.array(currs), np.array(uts)
     return HV, currs, uts
+
+
+def getIV(csvpaths, time, start_row):
+    for fname in csvpaths:
+        with open(fname) as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            reader = list(reader)
+            for row in range(start_row,len(reader)):
+                if time < float(reader[row][2]) and time > float(reader[row-1][2]):
+                    return float(reader[row-1][1]), float(reader[row-1][0]), row
+    print("ERROR: No I-V for event! t = ",time)
+
+
 def postprocess(voltages, times):
     vs = -voltages
     max_vs = max(vs)
@@ -84,13 +108,33 @@ def postprocess(voltages, times):
         rev_vs_low = vs_low[::-1]
         # manual off-set
         # where [axis][index]
-        iend = np.where(vs_high < 5.0)[0][0] + imax
-        istart = np.where(vs_low < 5.0)[0][-1]
+        try:
+            iend = np.where(vs_high < 5.0)[0][0] + imax
+        except:
+            iend = 1000
+        try:
+            istart = np.where(vs_low < 5.0)[0][-1]
+        except:
+            istart = 24
         vMax = max_vs
         tMax = times[imax]
-        offset = np.mean(vs[30:int(istart*3/4)])
+        offset = np.mean(vs[:int(istart*3/4)])
         noise = 0.5*(np.percentile(vs[:int(istart*3/4)],
                                           95) - np.percentile(vs[:int(istart*3/4)], 5))
         vs -= offset
         area = np.trapz(vs[istart:iend], times[istart:iend])
-        return area, offset, noise, tMax, vMax
+
+        try:
+            vFix10 = vs[istart+20]
+        except:
+            vFix10 = -999
+        try:
+            vFix20 = vs[istart+40]
+        except:
+            vFix20 = -999
+        try:
+            vFix30 = vs[istart+60]
+        except:
+            vFix30 = -999
+        
+        return area, offset, noise, tMax, vMax, vFix10, vFix20, vFix30

@@ -6,6 +6,7 @@
 # note that time values are different for every event since
 # DRS binning is uneven, and the trigger can occur in any bin
 
+import os
 import sys
 import struct
 import datetime as dt
@@ -19,12 +20,13 @@ import time
 from multiprocessing import Pool
 from utils import *
 
-
 def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     print("Processing " + name)
-    indir = "./unprocessed"
-    outdir = "./processed"
-
+    indir = str(inpath)
+    if not os.path.exists(outpath):
+        os.makedirs(outpath)
+    outdir = str(outpath)
+        
     N_BINS = 1024  # number of timing bins per channel
 
     fin = indir+"/{0}.dat".format(name)
@@ -49,10 +51,12 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     area_CH4 = np.array([0], dtype=float)
     offset_CH4 = np.array([0], dtype=float)
     noise_CH4 = np.array([0], dtype=float)
+    trig_cell = np.array([0], dtype=int)
     evtHV = np.array([0], dtype=float)
+    evtHV_adj = np.array([0], dtype=float)
     evtCurr = np.array([0], dtype=float)
+    scan = np.array([0], dtype=int)
 
-    # original postprocess
     vMax_CH1 = np.array([0], dtype=float)
     vMax_CH2 = np.array([0], dtype=float)
     vMax_CH3 = np.array([0], dtype=float)
@@ -62,6 +66,20 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     tMax_CH2 = np.array([0], dtype=float)
     tMax_CH3 = np.array([0], dtype=float)
     tMax_CH4 = np.array([0], dtype=float)
+
+    vFix10_CH1 = np.array([0], dtype=float)
+    vFix10_CH2 = np.array([0], dtype=float)
+    vFix10_CH3 = np.array([0], dtype=float)
+    vFix10_CH4 = np.array([0], dtype=float)
+    vFix20_CH1 = np.array([0], dtype=float)
+    vFix20_CH2 = np.array([0], dtype=float)
+    vFix20_CH3 = np.array([0], dtype=float)
+    vFix20_CH4 = np.array([0], dtype=float)
+    vFix30_CH1 = np.array([0], dtype=float)
+    vFix30_CH2 = np.array([0], dtype=float)
+    vFix30_CH3 = np.array([0], dtype=float)
+    vFix30_CH4 = np.array([0], dtype=float)
+
     t = r.TTree("Events", "Events")
     t1 = t.Branch("times_CH1", ts1, 'times[1024]/D')
     v1 = t.Branch("voltages_CH1", vs1, 'voltages[1024]/D')
@@ -73,7 +91,9 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     v4 = t.Branch("voltages_CH4", vs4, 'voltages[1024]/D')
     if len(HV) > 0 or len(uts) > 0:
         eHV = t.Branch("bias_voltage", evtHV, 'bias/D')
+        eHV_adj = t.Branch("bias_voltage_adjusted", evtHV_adj, 'adjusted_bias/D')
         eCurr = t.Branch("bias_current", evtCurr, 'bias/D')
+    b_scan = t.Branch("scan_number", scan, 'scan/I')
 
     b_area_CH1 = t.Branch("area_CH1", area_CH1, "area/D")
     b_offset_CH1 = t.Branch("offset_CH1", offset_CH1, "offset/D")
@@ -95,7 +115,19 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     b_vMax_CH2 = t.Branch("vMax_CH2", vMax_CH2, "dt/D")
     b_vMax_CH3 = t.Branch("vMax_CH3", vMax_CH3, "dt/D")
     b_vMax_CH4 = t.Branch("vMax_CH4", vMax_CH4, "dt/D")
-
+    b_vFix10_CH1 = t.Branch("vFix10_CH1", vFix10_CH1, "vFix10/D")
+    b_vFix10_CH2 = t.Branch("vFix10_CH2", vFix10_CH2, "vFix10/D")
+    b_vFix10_CH3 = t.Branch("vFix10_CH3", vFix10_CH3, "vFix10/D")
+    b_vFix10_CH4 = t.Branch("vFix10_CH4", vFix10_CH4, "vFix10/D")
+    b_vFix20_CH1 = t.Branch("vFix20_CH1", vFix20_CH1, "vFix20/D")
+    b_vFix20_CH2 = t.Branch("vFix20_CH2", vFix20_CH2, "vFix20/D")
+    b_vFix20_CH3 = t.Branch("vFix20_CH3", vFix20_CH3, "vFix20/D")
+    b_vFix20_CH4 = t.Branch("vFix20_CH4", vFix20_CH4, "vFix20/D")
+    b_vFix30_CH1 = t.Branch("vFix30_CH1", vFix30_CH1, "vFix30/D")
+    b_vFix30_CH2 = t.Branch("vFix30_CH2", vFix30_CH2, "vFix30/D")
+    b_vFix30_CH3 = t.Branch("vFix30_CH3", vFix30_CH3, "vFix30/D")
+    b_vFix30_CH4 = t.Branch("vFix30_CH4", vFix30_CH4, "vFix30/D")
+    
     fid = open(fin, 'rb')
 
     # make sure file header is correct
@@ -153,9 +185,16 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     rates = []
 
     epoch = dt.datetime.utcfromtimestamp(0)
-    UTC_OFFSET = -7
+    #-7 for March - November Daylight Savings Time, -8 otherwise for Standard Time
+    #UTC_OFFSET = -7
+    UTC_OFFSET = -8
 
     n_evt = 0
+    bad_evt = 0
+    lastHV = 0
+    n_scan = 0
+    scan_up = True
+    start_row = 2
     while True:
         ehdr = getStr(fid, 4)
         if ehdr is None:
@@ -164,8 +203,6 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
             raise Exception("Bad event header!")
 
         n_evt += 1
-        if((n_evt-1) % 10000 == 0):
-            print("Processing event "+str(n_evt-1))
         # skip 2 digits for NO USE
         serial = getInt(fid)
 
@@ -183,8 +220,24 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
         nextChange = np.argmax(uts > timestamp)
         previous = nextChange-1
         gap = uts[nextChange] - uts[previous]
+        lastHV = evtHV[0]
         evtHV[0] = HV[np.argmax(uts > timestamp)-1]
+        evtHV_adj[0] = HV[np.argmax(uts > timestamp)-1] - 101e3*currs[np.argmax(uts > timestamp)-1]
         evtCurr[0] = currs[np.argmax(uts > timestamp)-1]
+        
+        if scan_up and evtHV[0] < lastHV:
+            n_scan += 1
+            scan_up = False
+            scan[0] = n_scan
+        elif (not scan_up) and evtHV[0] > lastHV:
+            n_scan += 1
+            scan_up = True
+            scan[0] = n_scan
+        else:
+            scan[0] = n_scan
+
+        if((n_evt-1) % 10000 == 0):
+            print("Processing event "+str(n_evt-1))
 
         if n_evt == 1:
             t_start = date
@@ -195,7 +248,7 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
         getStr(fid, 2)
         b_num = getShort(fid)
         getStr(fid, 2)
-        trig_cell = getShort(fid)
+        trig_cell[0] = getShort(fid)
         # print "  Trigger Cell: "+str(trig_cell)
 
 
@@ -216,13 +269,16 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
             #     goodFlag = False
             #     continue
             voltages = voltages/65535. * 1000 - 500 + rangeCtr
-            times = np.roll(np.array(bin_widths[ichn]), N_BINS-trig_cell)
+            times = np.roll(np.array(bin_widths[ichn]), N_BINS-trig_cell[0])
             times = np.cumsum(times)
             times = np.append([0], times[:-1])
             rates.append((times[-1]-times[0])/(times.size-1))
             try:
-                area, offset, noise, tMax, vMax = postprocess(voltages, times)
-            except TypeError:
+                area, offset, noise, tMax, vMax, vFix10, vFix20, vFix30 = postprocess(voltages, times)
+            except:
+                #if ichn == 0:
+                #    print("ERROR: bad event "+str(n_evt-1))
+                #    bad_evt += 1
                 continue
                 # area, offset, noise, tMax, vMax = 0,0,0,0,0
             if ichn == 0:
@@ -233,6 +289,9 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(noise_CH1, noise)
                 np.copyto(tMax_CH1, tMax)
                 np.copyto(vMax_CH1, vMax)
+                np.copyto(vFix10_CH1, vFix10)
+                np.copyto(vFix20_CH1, vFix20)
+                np.copyto(vFix30_CH1, vFix30)
             elif ichn == 1:
                 np.copyto(ts2, times)
                 np.copyto(vs2, voltages)
@@ -241,6 +300,9 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(noise_CH2, noise)
                 np.copyto(tMax_CH2, tMax)
                 np.copyto(vMax_CH2, vMax)
+                np.copyto(vFix10_CH2, vFix10)
+                np.copyto(vFix20_CH2, vFix20)
+                np.copyto(vFix30_CH2, vFix30)
             elif ichn == 2:
                 np.copyto(ts3, times)
                 np.copyto(vs3, voltages)
@@ -249,6 +311,9 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(noise_CH3, noise)
                 np.copyto(tMax_CH3, tMax)
                 np.copyto(vMax_CH3, vMax)
+                np.copyto(vFix10_CH3, vFix10)
+                np.copyto(vFix20_CH3, vFix20)
+                np.copyto(vFix30_CH3, vFix30)
             elif ichn == 3:
                 np.copyto(ts4, times)
                 np.copyto(vs4, voltages)
@@ -257,6 +322,9 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(noise_CH4, noise)
                 np.copyto(tMax_CH4, tMax)
                 np.copyto(vMax_CH4, vMax)
+                np.copyto(vFix10_CH4, vFix10)
+                np.copyto(vFix20_CH4, vFix20)
+                np.copyto(vFix30_CH4, vFix30)
             else:
                 print("ERROR: Channel out of range! "+str(ichn))
                 exit(1)
@@ -269,7 +337,7 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
 
     print("Measured sampling rate: {0:.2f} GHz".format(1.0/np.mean(rates)))
     print("Total time of run = " + str(t_tot) +
-          " which is " + str(t_sec) + " seconds.")
+          " = " + str(t_sec) + " seconds.")
     print("Event rate = " + str(n_evt/t_sec) + " Hz")
     t.Write()
     fout.Close()
@@ -280,8 +348,10 @@ if __name__ == "__main__":
         description="Parse DRS .dat file and .csv into .root files")
     parser.add_argument('-b', '--binaryfile',
                         help='Path to binary files', required=True, type=str)
-    parser.add_argument(
-        '-c', '--csvpath', help='Path to folder of CSV file', required=False, type=str)
+    parser.add_argument('-o', '--outputpath',
+                        help='Path for output ROOT file', required=False, type=str)
+    parser.add_argument('-c', '--csvpath', 
+                        help='Path to folder of CSV file', required=False, type=str)
     args = vars(parser.parse_args())
 
     datfiles = glob.glob(args["binaryfile"]+"/*.dat")
@@ -289,6 +359,10 @@ if __name__ == "__main__":
         csvpath = glob.glob(args['csvpath']+"/*.csv")
     except TypeError:
         csvpath = ""
+    try:
+        outpath = args['outputpath']
+    except TypeError:
+        outpath = "./processed/"
 
     HV, currs, uts = parseCSV(csvpath)
     poolargs = []
@@ -296,9 +370,10 @@ if __name__ == "__main__":
         folder, name = each.rsplit('/', 1)
         name, ext = name.rsplit('.', 1)
         # avoid overwrite
-        if not (glob.glob("./processed/"+name+".root")):
-            poolargs.append((name, HV, currs, uts))
-        # processMultiChanBinary(name, csvpath)
-
-    pool = Pool(processes=5)
-    pool.starmap(processMultiChanBinary, poolargs)
+        if not (glob.glob(outpath+name+".root")):
+            #poolargs.append((name, HV, currs, uts))
+            inpath = folder
+            processMultiChanBinary(name, HV, currs, uts)
+            
+    #pool = Pool(processes=5)
+    #pool.starmap(processMultiChanBinary, poolargs)
