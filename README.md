@@ -13,7 +13,9 @@ Run the command using `-b` and `-c` to specify path to `.dat` and `.csv`'s respe
 python ./processMultiChanBinary.py -b ./unprocessed/ -c ./currentMonitor/ -o ./processed/
 ```
 
-This will create a `.root` file in `./processed/` for each `.dat` in `./unprocessed/`. For each `.dat`, ALL `.csv` files in `./currentMonitor/` are searched to match oscilloscope timestamp with the corresponding bias voltage recorded by the Keithley.
+This will create a `.root` file in `./processed/` for each `.dat` in `./unprocessed/`. The path for `-b` must be specified. If no `-o` argument is given, default is to use `./processed` folder. 
+
+For each `.dat`, ALL `.csv` files in `./currentMonitor/` are searched to match oscilloscope timestamp with the corresponding bias voltage recorded by the Keithley. If no `-c` argument is given, no Keithley data will be used and all I,V branches will be filled with zeros.
 
 ## processMultiChanBinary.py
 The first step is to parse the binary DRS output to extract 1024 (time, voltage) measurements for each channel for each event, which are stored in ROOT branches.
