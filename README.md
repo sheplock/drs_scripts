@@ -1,6 +1,3 @@
-# drs_scripts
-**Note**: By default, `processMultiChanBinary` uses 4 processes.
-
 ## Non-built in dependence
 * ROOT
 * numpy
