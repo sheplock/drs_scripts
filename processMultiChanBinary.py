@@ -217,13 +217,14 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
         # event time (timestamp) comes before a uts voltage change time
         # so the voltage of event corresponds to the previous argument
         # since it is the bin where timestamp occurred (> lower limit, < upper)
-        nextChange = np.argmax(uts > timestamp)
-        previous = nextChange-1
-        gap = uts[nextChange] - uts[previous]
-        lastHV = evtHV[0]
-        evtHV[0] = HV[np.argmax(uts > timestamp)-1]
-        evtHV_adj[0] = HV[np.argmax(uts > timestamp)-1] - 101e3*currs[np.argmax(uts > timestamp)-1]
-        evtCurr[0] = currs[np.argmax(uts > timestamp)-1]
+        if len(uts) > 0:
+            nextChange = np.argmax(uts > timestamp)
+            previous = nextChange-1
+            gap = uts[nextChange] - uts[previous]
+            lastHV = evtHV[0]
+            evtHV[0] = HV[np.argmax(uts > timestamp)-1]
+            evtHV_adj[0] = HV[np.argmax(uts > timestamp)-1] - 101e3*currs[np.argmax(uts > timestamp)-1]
+            evtCurr[0] = currs[np.argmax(uts > timestamp)-1]
         
         if scan_up and evtHV[0] < lastHV:
             n_scan += 1
@@ -358,10 +359,9 @@ if __name__ == "__main__":
     try:
         csvpath = glob.glob(args['csvpath']+"/*.csv")
     except TypeError:
-        csvpath = ""
-    try:
-        outpath = args['outputpath']
-    except TypeError:
+        csvpath = []
+    outpath = args['outputpath']
+    if outpath == None:
         outpath = "./processed/"
 
     HV, currs, uts = parseCSV(csvpath)

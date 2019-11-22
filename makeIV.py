@@ -68,9 +68,8 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
     csvpath = glob.glob(args['csvpath']+"/*.csv")
-    try:
-        outpath = args['outputpath']
-    except TypeError:
+    outpath = args['outputpath']
+    if outpath == None:
         outpath = "./IVcurves/"
-
+    
     makeIV(csvpath)
