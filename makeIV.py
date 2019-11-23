@@ -43,12 +43,22 @@ def makeIV(csvpath):
             
             Vbias = np.array([0], dtype=float)
             Ibias = np.array([0], dtype=float)
+            scan  = np.array([0], dtype=int)
 
             t = r.TTree("Events","Events")
             b_Vbias = t.Branch("V_bias", Vbias, 'Vbias/D')
             b_Ibias = t.Branch("I_bias", Ibias, 'Ibias/D')
+            b_scan  = t.Branch("scan",   scan,  'scan/I')
 
+            scan[0] = 0
+            scan_up = True
             for i in range(nEntries):
+                if HV[i] < HV[i-1] and scan_up:
+                    scan[0] += 1
+                    scan_up = False
+                elif HV[i] > HV[i-1] and not scan_up:
+                    scan[0] += 1
+                    scan_up = True
                 Vbias[0] = HV[i]
                 Ibias[0] = currs[i]
                 t.Fill()
