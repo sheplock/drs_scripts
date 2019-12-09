@@ -4,7 +4,9 @@
 * matplotlib
 
 
-## Example:
+## How to process binary DRS4 data:
+Information on what each byte of DRS output encodes found on p25 here: https://www.psi.ch/sites/default/files/import/drs/DocumentationEN/manual_rev50.pdf
+
 First create a folder or folders to store data in the `drs_scripts` directory. For example, `./unprocessed/` for the `.dat` binary files from the DRS, `./currentMonitor/` for the Keithley I-V data, and `./processed/` for the output `.root` files.
 
 Run the command using `-b` and `-c` to specify path to `.dat` and `.csv`'s respectively, and `-o` to specify path for output.
