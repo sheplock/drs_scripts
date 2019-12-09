@@ -223,7 +223,7 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
             gap = uts[nextChange] - uts[previous]
             lastHV = evtHV[0]
             evtHV[0] = HV[np.argmax(uts > timestamp)-1]
-            evtHV_adj[0] = HV[np.argmax(uts > timestamp)-1] - 101e3*currs[np.argmax(uts > timestamp)-1]
+            evtHV_adj[0] = HV[np.argmax(uts > timestamp)-1] - 1.1e6*currs[np.argmax(uts > timestamp)-1]
             evtCurr[0] = currs[np.argmax(uts > timestamp)-1]
         
         if scan_up and evtHV[0] < lastHV:
