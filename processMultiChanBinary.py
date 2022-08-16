@@ -80,6 +80,41 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     vFix30_CH3 = np.array([0], dtype=float)
     vFix30_CH4 = np.array([0], dtype=float)
 
+    pulseLength_CH1 = np.array([0], dtype=float)
+    pulseLength_CH2 = np.array([0], dtype=float)
+    pulseLength_CH3 = np.array([0], dtype=float)
+    pulseLength_CH4 = np.array([0], dtype=float)
+
+    riseTime_CH1 = np.array([0], dtype=float)
+    riseTime_CH2 = np.array([0], dtype=float)
+    riseTime_CH3 = np.array([0], dtype=float)
+    riseTime_CH4 = np.array([0], dtype=float)
+
+    slope_CH1 = np.array([0], dtype=float)
+    slope_CH2 = np.array([0], dtype=float)
+    slope_CH3 = np.array([0], dtype=float)
+    slope_CH4 = np.array([0], dtype=float)
+
+    t10_CH1 = np.array([0], dtype=float)
+    t10_CH2 = np.array([0], dtype=float)
+    t10_CH3 = np.array([0], dtype=float)
+    t10_CH4 = np.array([0], dtype=float)
+
+    t90_CH1 = np.array([0], dtype=float)
+    t90_CH2 = np.array([0], dtype=float)
+    t90_CH3 = np.array([0], dtype=float)
+    t90_CH4 = np.array([0], dtype=float)
+
+    v10_CH1 = np.array([0], dtype=float)
+    v10_CH2 = np.array([0], dtype=float)
+    v10_CH3 = np.array([0], dtype=float)
+    v10_CH4 = np.array([0], dtype=float)
+
+    v90_CH1 = np.array([0], dtype=float)
+    v90_CH2 = np.array([0], dtype=float)
+    v90_CH3 = np.array([0], dtype=float)
+    v90_CH4 = np.array([0], dtype=float)
+
     t = r.TTree("Events", "Events")
     t1 = t.Branch("times_CH1", ts1, 'times[1024]/D')
     v1 = t.Branch("voltages_CH1", vs1, 'voltages[1024]/D')
@@ -127,6 +162,41 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
     b_vFix30_CH2 = t.Branch("vFix30_CH2", vFix30_CH2, "vFix30/D")
     b_vFix30_CH3 = t.Branch("vFix30_CH3", vFix30_CH3, "vFix30/D")
     b_vFix30_CH4 = t.Branch("vFix30_CH4", vFix30_CH4, "vFix30/D")
+
+    b_pulseLength_CH1 = t.Branch("pulseLength_CH1", pulseLength_CH1, "pulseLength/D")
+    b_pulseLength_CH2 = t.Branch("pulseLength_CH2", pulseLength_CH2, "pulseLength/D")
+    b_pulseLength_CH3 = t.Branch("pulseLength_CH3", pulseLength_CH3, "pulseLength/D")
+    b_pulseLength_CH4 = t.Branch("pulseLength_CH4", pulseLength_CH4, "pulseLength/D")
+    
+    b_riseTime_CH1 = t.Branch("riseTime_CH1", riseTime_CH1, "riseTime/D")
+    b_riseTime_CH2 = t.Branch("riseTime_CH2", riseTime_CH2, "riseTime/D")
+    b_riseTime_CH3 = t.Branch("riseTime_CH3", riseTime_CH3, "riseTime/D")
+    b_riseTime_CH4 = t.Branch("riseTime_CH4", riseTime_CH4, "riseTime/D")
+
+    b_slope_CH1 = t.Branch("slope_CH1", slope_CH1, "slope/D")
+    b_slope_CH2 = t.Branch("slope_CH2", slope_CH2, "slope/D")
+    b_slope_CH3 = t.Branch("slope_CH3", slope_CH3, "slope/D")
+    b_slope_CH4 = t.Branch("slope_CH4", slope_CH4, "slope/D")
+    
+    b_t10_CH1 = t.Branch("t10_CH1", t10_CH1, "t10/D")
+    b_t10_CH2 = t.Branch("t10_CH2", t10_CH2, "t10/D")
+    b_t10_CH3 = t.Branch("t10_CH3", t10_CH3, "t10/D")
+    b_t10_CH4 = t.Branch("t10_CH4", t10_CH4, "t10/D")
+    
+    b_t90_CH1 = t.Branch("t90_CH1", t90_CH1, "t90/D")
+    b_t90_CH2 = t.Branch("t90_CH2", t90_CH2, "t90/D")
+    b_t90_CH3 = t.Branch("t90_CH3", t90_CH3, "t90/D")
+    b_t90_CH4 = t.Branch("t90_CH4", t90_CH4, "t90/D")
+    
+    b_v10_CH1 = t.Branch("v10_CH1", v10_CH1, "v10/D")
+    b_v10_CH2 = t.Branch("v10_CH2", v10_CH2, "v10/D")
+    b_v10_CH3 = t.Branch("v10_CH3", v10_CH3, "v10/D")
+    b_v10_CH4 = t.Branch("v10_CH4", v10_CH4, "v10/D")
+    
+    b_v90_CH1 = t.Branch("v90_CH1", v90_CH1, "v90/D")
+    b_v90_CH2 = t.Branch("v90_CH2", v90_CH2, "v90/D")
+    b_v90_CH3 = t.Branch("v90_CH3", v90_CH3, "v90/D")
+    b_v90_CH4 = t.Branch("v90_CH4", v90_CH4, "v90/D")
     
     fid = open(fin, 'rb')
 
@@ -186,8 +256,8 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
 
     epoch = dt.datetime.utcfromtimestamp(0)
     #-7 for March - November Daylight Savings Time, -8 otherwise for Standard Time
-    #UTC_OFFSET = -7
-    UTC_OFFSET = -8
+    #UTC_OFFSET = -8
+    UTC_OFFSET = -7
 
     n_evt = 0
     bad_evt = 0
@@ -274,13 +344,13 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
             times = np.cumsum(times)
             times = np.append([0], times[:-1])
             rates.append((times[-1]-times[0])/(times.size-1))
-            try:
-                area, offset, noise, tMax, vMax, vFix10, vFix20, vFix30 = postprocess(voltages, times)
-            except:
+            #try:
+            area, offset, noise, tMax, vMax, vFix10, vFix20, vFix30, pulseLength, t10, t90, v10, v90, riseTime, slope = postprocess(voltages, times)
+#except:
                 #if ichn == 0:
                 #    print("ERROR: bad event "+str(n_evt-1))
                 #    bad_evt += 1
-                continue
+                #continue
                 # area, offset, noise, tMax, vMax = 0,0,0,0,0
             if ichn == 0:
                 np.copyto(ts1, times)
@@ -293,6 +363,13 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(vFix10_CH1, vFix10)
                 np.copyto(vFix20_CH1, vFix20)
                 np.copyto(vFix30_CH1, vFix30)
+                np.copyto(pulseLength_CH1, pulseLength)
+                np.copyto(riseTime_CH1, riseTime)
+                np.copyto(slope_CH1, slope)
+                np.copyto(t10_CH1, t10)
+                np.copyto(t90_CH1, t90)
+                np.copyto(v10_CH1, v10)
+                np.copyto(v90_CH1, v90)
             elif ichn == 1:
                 np.copyto(ts2, times)
                 np.copyto(vs2, voltages)
@@ -304,6 +381,13 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(vFix10_CH2, vFix10)
                 np.copyto(vFix20_CH2, vFix20)
                 np.copyto(vFix30_CH2, vFix30)
+                np.copyto(pulseLength_CH2, pulseLength)
+                np.copyto(riseTime_CH2, riseTime)
+                np.copyto(slope_CH2, slope)
+                np.copyto(t10_CH2, t10)
+                np.copyto(t90_CH2, t90)
+                np.copyto(v10_CH2, v10)
+                np.copyto(v90_CH2, v90)
             elif ichn == 2:
                 np.copyto(ts3, times)
                 np.copyto(vs3, voltages)
@@ -315,6 +399,13 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(vFix10_CH3, vFix10)
                 np.copyto(vFix20_CH3, vFix20)
                 np.copyto(vFix30_CH3, vFix30)
+                np.copyto(pulseLength_CH3, pulseLength)
+                np.copyto(riseTime_CH3, riseTime)
+                np.copyto(slope_CH3, slope)
+                np.copyto(t10_CH3, t10)
+                np.copyto(t90_CH3, t90)
+                np.copyto(v10_CH3, v10)
+                np.copyto(v90_CH3, v90)
             elif ichn == 3:
                 np.copyto(ts4, times)
                 np.copyto(vs4, voltages)
@@ -326,6 +417,13 @@ def processMultiChanBinary(name, HV=[], currs=[], uts=[]):
                 np.copyto(vFix10_CH4, vFix10)
                 np.copyto(vFix20_CH4, vFix20)
                 np.copyto(vFix30_CH4, vFix30)
+                np.copyto(pulseLength_CH4, pulseLength)
+                np.copyto(riseTime_CH4, riseTime)
+                np.copyto(slope_CH4, slope)
+                np.copyto(t10_CH4, t10)
+                np.copyto(t90_CH4, t90)
+                np.copyto(v10_CH4, v10)
+                np.copyto(v90_CH4, v90)
             else:
                 print("ERROR: Channel out of range! "+str(ichn))
                 exit(1)

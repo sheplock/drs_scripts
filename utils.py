@@ -100,7 +100,7 @@ def postprocess(voltages, times):
     imax = np.argmax(vs)
     # istart = np.argmax(times_CH1>tstart_1+times_CH1[0])
     # iend = np.argmax(times_CH1>tend_1+times_CH1[0])
-    if(imax > 24 and imax < 1000):
+    if(imax > 100 and imax < 1000 and not np.isnan(max_vs)):
         # after peak
         vs_high = vs[imax:]
         # before peak
@@ -108,22 +108,35 @@ def postprocess(voltages, times):
         rev_vs_low = vs_low[::-1]
         # manual off-set
         # where [axis][index]
+        noise = 0.5*(np.percentile(vs[:100],95) - np.percentile(vs[:100],5))
         try:
-            iend = np.where(vs_high < 5.0)[0][0] + imax
+            iend = np.where(vs_high < noise)[0][0] + imax
         except:
             iend = 1000
         try:
-            istart = np.where(vs_low < 5.0)[0][-1]
+            istart = np.where(vs_low < noise)[0][-1]
         except:
-            istart = 24
-        vMax = max_vs
-        tMax = times[imax]
-        offset = np.mean(vs[:int(istart*3/4)])
-        noise = 0.5*(np.percentile(vs[:int(istart*3/4)],
-                                          95) - np.percentile(vs[:int(istart*3/4)], 5))
+            istart = 100
+        offset = np.mean(vs[:75])
+        #noise = 0.5*(np.percentile(vs[:int(istart*3/4)],
+        #                                  95) - np.percentile(vs[:int(istart*3/4)], 5))
         vs -= offset
         area = np.trapz(vs[istart:iend], times[istart:iend])
 
+        vMax = vs[imax]
+        tMax = times[imax]
+        pulseLength = times[iend] - times[istart]
+
+        #print(vs[istart:imax+1], vMax, 0.1*vMax, istart, imax)
+        pt10 = np.where(vs[istart:imax+1] > 0.1*vMax)[0][0] + istart
+        pt90 = np.where(vs[pt10:imax+1] > 0.9*vMax)[0][0] + pt10
+        slope = (vs[pt90] - vs[pt10]) / (times[pt90] - times[pt10])
+        t10 = times[pt10]
+        v10 = vs[pt10]
+        t90 = times[pt90]
+        v90 = vs[pt90]
+        riseTime = (0.9*vMax - 0.1*vMax) / slope
+        
         try:
             vFix10 = vs[istart+20]
         except:
@@ -137,4 +150,8 @@ def postprocess(voltages, times):
         except:
             vFix30 = -999
         
-        return area, offset, noise, tMax, vMax, vFix10, vFix20, vFix30
+        return area, offset, noise, tMax, vMax, vFix10, vFix20, vFix30, pulseLength, t10, t90, v10, v90, riseTime, slope
+
+    else:
+
+        return -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
